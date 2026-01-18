@@ -1,0 +1,14 @@
+from pynq.overlays.base import BaseOverlay
+from pynq.lib import MicroblazeLibrary
+
+# 1. Load the FPGA Bitstream
+base = BaseOverlay("base.bit")
+
+# 2. Compile and Load the C Logic
+# (In a real deployment, we load the .c file we just made)
+lib = MicroblazeLibrary(base.ARDUINO, ['reflex_core.c'])
+
+# 3. Start the Hardware Loop
+print("Starting the hardware reflex...")
+lib.start_reflex_loop() 
+# The FPGA is now independent.

@@ -1,0 +1,99 @@
+import sys, time, math, random, threading
+
+TRIGGER_PATH = "/dev/gpio/2/"
+REFLEX_PATH = "/dev/gpio/1/"
+W = 120
+USE_HARDWARE = True
+current_latency = 0.0
+buff = [0.0] * W
+run = True
+f_trig = None
+f_reflex = None
+
+def init_hardware():
+    global f_trig, f_reflex
+    if USE_HARDWARE:
+        try:
+            f_trig = open(TRIGGER_PATH, "wb", buffering=0)
+            f_reflex = open(REFLEX_PATH, "rb", buffering=0)
+            print("Hardware Connected. Monitoring PYNQ Latency...")
+        except Exception as e:
+            print(f"Hardware Init Failed: {e}")
+            sys.exit(1)
+
+def ping_pynq():
+    if not USE_HARDWARE:
+        return 5.0 + random.uniform(-0.5, 0.5)
+    try:
+        start = time.perf_counter()
+        f_trig.write(b'1')
+        timeout = time.perf_counter() + 0.001
+        success = False
+        while time.perf_counter() < timeout:
+            f_reflex.seek(0)
+            if f_reflex.read(1) == b'1':
+                success = True
+                break
+        end = time.perf_counter()
+        f_trig.write(b'0')
+        if success:
+            return (end - start) * 1000000.0
+        
+        except: # Note: There appears to be a syntax error in the source image here; 'except' is indented inside 'try' or missing the block alignment. Assuming standard indentation:
+        return 0.0
+    
+    # Correction based on image flow: The 'except' block in the image is aligned with the 'try', so it catches errors from the hardware interaction.
+    except:
+        return 0.0
+
+def daq():
+    global current_latency
+    while run:
+        lat = ping_pynq()
+        current_latency = lat
+        buff.pop(0)
+        buff.append(lat)
+        time.sleep(0.01)
+
+def ui():
+    G = "\033[32m"
+    B = "\033[34m"
+    Y = "\033[33m"
+    W_COL = "\033[0m"
+    sys.stdout.write("\033[2J")
+    while run:
+        sys.stdout.write("\033[H")
+        print(f"{Y}{'='*W}{W_COL}")
+        print(f"{Y} QNX REAL-TIME SCOPE | LATENCY:  {current_latency:6.2f} us | TRIGGER: {TRIGGER_PATH}{W_COL}")
+        print(f"{Y} TARGET: PYNQ-Z2     | REFLEX:   {REFLEX_PATH} | STATUS: {'CONNECTED' if USE_HARDWARE else 'SIM'}{W_COL}")
+        print(f"{Y}{'='*W}{W_COL}")
+        max_val = max(buff) + 5
+        min_val = max(0, min(buff) - 5)
+        scale_factor = max(1, max_val - min_val)
+        rows = 20
+        for y in range(rows):
+            thresh_high = max_val - (y * (scale_factor / rows))
+            thresh_low = max_val - ((y + 1) * (scale_factor / rows))
+            line = f"{int(thresh_high):3d}us |"
+            for x in range(W - 10):
+                val = buff[x]
+                if thresh_low <= val <= thresh_high:
+                    line += f"{G}#{W_COL}"
+                elif y == rows - 1:
+                    line += f"{B}_{W_COL}"
+                else:
+                    line += " "
+            print(line + "\033[K")
+        time.sleep(0.04)
+
+if __name__ == "__main__":
+    init_hardware()
+    t = threading.Thread(target=daq)
+    t.daemon = True
+    t.start()
+    try:
+        ui()
+    except KeyboardInterrupt:
+        run = False
+        if f_trig: f_trig.close()
+        if f_reflex: f_reflex.close()

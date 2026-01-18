@@ -13,9 +13,6 @@ The system consists of two distinct physical nodes connected via GPIO:
 ### The Signal Path
 `QNX (User Space) -> Kernel Driver -> GPIO Output -> [WIRE] -> FPGA Input -> Logic -> FPGA Output -> [WIRE] -> QNX Interrupt -> Latency Calculation`
 
-##  Results & Jitter Analysis
-![Real-Time Graph](./docs/jitter_graph_real.png)
-*Above: Real-time visualization of round-trip latency. The baseline sits at ~115µs (Python overhead), while vertical spikes represent OS scheduler preemption.*
 
 * **Fast Path Latency:** 110-120 µs
 * **Jitter Variance:** ±150 µs (under GUI load)

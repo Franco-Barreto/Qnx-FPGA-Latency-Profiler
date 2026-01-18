@@ -1,0 +1,34 @@
+/*
+ * REFLEX CORE LOGIC (MicroBlaze)
+ * Target: PYNQ-Z2 (Zynq-7000)
+ * Function: Deterministic Signal Reflector
+ */
+
+#include <gpio.h>
+#include <pyprintf.h>
+
+// PYNQ-Z2 Arduino Header Map:
+// D0 (IO0) = Pin 0
+// D1 (IO1) = Pin 1
+#define TRIGGER_PIN 0
+#define REFLEX_PIN  1
+
+// Entry point called by Python
+void start_reflex_loop() {
+    gpio pin_in = gpio_open(TRIGGER_PIN);
+    gpio pin_out = gpio_open(REFLEX_PIN);
+
+    gpio_set_direction(pin_in, GPIO_IN);
+    gpio_set_direction(pin_out, GPIO_OUT);
+
+    pyprintf("Hardware Loop Active.\n");
+
+    // The Infinite Loop (Bare Metal)
+    while(1) {
+        if (gpio_read(pin_in)) {
+            gpio_write(pin_out, 1);     // Respond High
+            while(gpio_read(pin_in));   // Hold until Input drops
+            gpio_write(pin_out, 0);     // Reset Low
+        }
+    }
+}
